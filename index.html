@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сканер билетов</title>
+<!--
+  Мини-приложение для кнопки «📷 Сканировать билет» в боте.
+  Открывает встроенный сканер QR Telegram и отправляет прочитанную ссылку боту (Telegram.WebApp.sendData).
+  Данных и токенов здесь нет: билет проверяет и гасит бот, и только если сканирует админ или контролёр.
+  Страница должна быть доступна по HTTPS (например, GitHub Pages), её адрес — scannerUrl в config/local.php.
+-->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 20px; padding: 24px; box-sizing: border-box; text-align: center;
+    font: 17px/1.4 -apple-system, system-ui, sans-serif;
+    background: var(--tg-theme-bg-color, #fff); color: var(--tg-theme-text-color, #000);
+  }
+  p { margin: 0; color: var(--tg-theme-hint-color, #888); }
+  button {
+    width: 100%; max-width: 320px; padding: 16px; border: 0; border-radius: 12px; font-size: 18px; font-weight: 600;
+    background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #fff);
+  }
+</style>
+</head>
+<body>
+<p id="hint">Открываю камеру…</p>
+<button id="scan" type="button">📷 Сканировать</button>
+<script>
+  const tg = window.Telegram.WebApp;
+  const hint = document.getElementById('hint');
+  // В QR билета — ссылка t.me/<бот>?start=t_<секрет>
+  const TICKET = /[?&]start=t_[A-Za-z0-9_-]+/;
+
+  function scan() {
+    hint.textContent = 'Наведи камеру на QR билета';
+    tg.showScanQrPopup({ text: 'Наведи на QR билета' }, function (text) {
+      if (!TICKET.test(text)) {
+        // Чужой QR: продолжаем сканировать
+        tg.HapticFeedback.notificationOccurred('error');
+        return false;
+      }
+      tg.HapticFeedback.notificationOccurred('success');
+      // Отправляет ссылку боту и закрывает мини-приложение
+      tg.sendData(text);
+      return true;
+    });
+  }
+
+  tg.ready();
+  tg.expand();
+  if (!tg.isVersionAtLeast('6.4')) {
+    hint.textContent = 'Сканер не поддерживается этой версией Telegram. Обнови приложение или сканируй камерой телефона.';
+    document.getElementById('scan').hidden = true;
+  } else {
+    tg.onEvent('scanQrPopupClosed', function () {
+      hint.textContent = 'Сканер закрыт';
+    });
+    document.getElementById('scan').addEventListener('click', scan);
+    scan();
+  }
+</script>
+</body>
+</html>
